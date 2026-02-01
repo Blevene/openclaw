@@ -105,14 +105,17 @@ export function findSimilarChunks(
     maxPairs?: number;
     /** Only compare within same source type */
     sameSourceOnly?: boolean;
+    /** Max chunks to sample for comparison (default 200, 0 = no limit) */
+    maxSampleSize?: number;
   },
 ): SimilarChunkPair[] {
   const threshold = options?.similarityThreshold ?? 0.9;
   const maxPairs = options?.maxPairs ?? 100;
   const sameSourceOnly = options?.sameSourceOnly ?? false;
+  const maxSampleSize = options?.maxSampleSize ?? 200;
 
   // Get all chunks with embeddings
-  const chunks = db
+  let allChunks = db
     .prepare(`
       SELECT c.id, c.path, c.source, c.text, c.embedding
       FROM chunks c
@@ -126,9 +129,22 @@ export function findSimilarChunks(
     embedding: string;
   }>;
 
+  // Sample if too many chunks to avoid O(n²) performance cliff
+  let chunks = allChunks;
+  if (maxSampleSize > 0 && allChunks.length > maxSampleSize) {
+    // Fisher-Yates shuffle, take first maxSampleSize
+    const shuffled = [...allChunks];
+    for (let i = shuffled.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
+    chunks = shuffled.slice(0, maxSampleSize);
+    log.debug(`Sampled ${maxSampleSize} of ${allChunks.length} chunks for similarity check`);
+  }
+
   const pairs: SimilarChunkPair[] = [];
 
-  // Compare all pairs (O(n^2) but necessary for similarity detection)
+  // Compare pairs (O(k²) where k = min(n, maxSampleSize))
   for (let i = 0; i < chunks.length && pairs.length < maxPairs; i++) {
     const chunk1 = chunks[i];
     if (!chunk1) {

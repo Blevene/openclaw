@@ -104,13 +104,17 @@ export class HistoryManager {
 
     if (this.persistentStore) {
       await this.persistentStore.initialize();
-      // Load existing history from persistent storage
-      this.persistentStore.loadToMemory(this.historyMap as Map<string, PersistedHistoryEntry[]>);
 
-      // Set up periodic sync (every 30 seconds)
-      this.syncInterval = setInterval(() => {
-        this.syncToPersistent();
-      }, 30_000);
+      // Only set up sync if store initialized successfully
+      if (this.persistentStore.isInitialized) {
+        // Load existing history from persistent storage
+        this.persistentStore.loadToMemory(this.historyMap as Map<string, PersistedHistoryEntry[]>);
+
+        // Set up periodic sync (every 30 seconds)
+        this.syncInterval = setInterval(() => {
+          this.syncToPersistent();
+        }, 30_000);
+      }
     }
 
     this.initialized = true;
