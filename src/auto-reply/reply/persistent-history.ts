@@ -44,17 +44,22 @@ const DEFAULT_CONFIG: PersistentHistoryConfig = {
 export class PersistentHistoryStore {
   private db: DatabaseSync | null = null;
   private readonly config: PersistentHistoryConfig;
-  private initialized = false;
+  private _initialized = false;
 
   constructor(config: Partial<PersistentHistoryConfig> & { dbPath: string }) {
     this.config = { ...DEFAULT_CONFIG, ...config };
+  }
+
+  /** Check if the store was successfully initialized */
+  get isInitialized(): boolean {
+    return this._initialized && this.db !== null;
   }
 
   /**
    * Initialize the database connection and schema
    */
   async initialize(): Promise<void> {
-    if (this.initialized) {
+    if (this._initialized) {
       return;
     }
 
@@ -75,7 +80,7 @@ export class PersistentHistoryStore {
 
       // Create schema
       this.ensureSchema();
-      this.initialized = true;
+      this._initialized = true;
 
       log.debug(`Persistent history initialized at ${this.config.dbPath}`);
     } catch (err) {
@@ -410,7 +415,7 @@ export class PersistentHistoryStore {
       }
       this.db = null;
     }
-    this.initialized = false;
+    this._initialized = false;
   }
 }
 
