@@ -94,6 +94,9 @@ export class PersistentHistoryStore {
       return;
     }
 
+    // Enable foreign key enforcement (required for CASCADE deletes)
+    this.db.exec(`PRAGMA foreign_keys = ON`);
+
     this.db.exec(`
       CREATE TABLE IF NOT EXISTS history_keys (
         key TEXT PRIMARY KEY,
