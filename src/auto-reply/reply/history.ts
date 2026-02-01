@@ -32,6 +32,8 @@ export type HistoryEntry = {
   body: string;
   timestamp?: number;
   messageId?: string;
+  /** WhatsApp-specific: sender JID for precise identity tracking */
+  senderJid?: string;
 };
 
 export function buildHistoryContext(params: {

@@ -3,7 +3,10 @@ import type { MentionConfig } from "../mentions.js";
 import type { WebInboundMsg } from "../types.js";
 import { hasControlCommand } from "../../../auto-reply/command-detection.js";
 import { parseActivationCommand } from "../../../auto-reply/group-activation.js";
-import { recordPendingHistoryEntryIfEnabled } from "../../../auto-reply/reply/history.js";
+import {
+  recordPendingHistoryEntryIfEnabled,
+  type HistoryEntry,
+} from "../../../auto-reply/reply/history.js";
 import { resolveMentionGating } from "../../../channels/mention-gating.js";
 import { normalizeE164 } from "../../../utils.js";
 import { buildMentionConfig, debugMention, resolveOwnerList } from "../mentions.js";
@@ -11,13 +14,8 @@ import { stripMentionsForCommand } from "./commands.js";
 import { resolveGroupActivationFor, resolveGroupPolicyFor } from "./group-activation.js";
 import { noteGroupMember } from "./group-members.js";
 
-export type GroupHistoryEntry = {
-  sender: string;
-  body: string;
-  timestamp?: number;
-  id?: string;
-  senderJid?: string;
-};
+/** @deprecated Use HistoryEntry from history.js instead */
+export type GroupHistoryEntry = HistoryEntry;
 
 function isOwnerSender(baseMentionConfig: MentionConfig, msg: WebInboundMsg) {
   const sender = normalizeE164(msg.senderE164 ?? "");
@@ -80,7 +78,7 @@ export function applyGroupGating(params: {
         sender,
         body: params.msg.body,
         timestamp: params.msg.timestamp,
-        id: params.msg.id,
+        messageId: params.msg.id,
         senderJid: params.msg.senderJid,
       },
     });
@@ -138,7 +136,7 @@ export function applyGroupGating(params: {
         sender,
         body: params.msg.body,
         timestamp: params.msg.timestamp,
-        id: params.msg.id,
+        messageId: params.msg.id,
         senderJid: params.msg.senderJid,
       },
     });

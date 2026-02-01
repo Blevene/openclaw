@@ -38,13 +38,8 @@ import { formatGroupMembers } from "./group-members.js";
 import { trackBackgroundTask, updateLastRouteInBackground } from "./last-route.js";
 import { buildInboundLine } from "./message-line.js";
 
-export type GroupHistoryEntry = {
-  sender: string;
-  body: string;
-  timestamp?: number;
-  id?: string;
-  senderJid?: string;
-};
+/** @deprecated Use HistoryEntry from history.js instead */
+export type GroupHistoryEntry = HistoryEntry;
 
 function normalizeAllowFromE164(values: Array<string | number> | undefined): string[] {
   const list = Array.isArray(values) ? values : [];
@@ -152,12 +147,8 @@ export async function processMessage(params: {
   if (params.msg.chatType === "group") {
     const history = params.groupHistory ?? params.groupHistories.get(params.groupHistoryKey) ?? [];
     if (history.length > 0) {
-      const historyEntries: HistoryEntry[] = history.map((m) => ({
-        sender: m.sender,
-        body: m.body,
-        timestamp: m.timestamp,
-        messageId: m.id,
-      }));
+      // History entries are now already in HistoryEntry format
+      const historyEntries: HistoryEntry[] = history;
       combinedBody = buildHistoryContextFromEntries({
         entries: historyEntries,
         currentMessage: combinedBody,

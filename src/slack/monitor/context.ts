@@ -4,6 +4,7 @@ import type { OpenClawConfig, SlackReactionNotificationMode } from "../../config
 import type { DmPolicy, GroupPolicy } from "../../config/types.js";
 import type { RuntimeEnv } from "../../runtime.js";
 import type { SlackMessageEvent } from "../types.js";
+import { createHistoryManager } from "../../auto-reply/reply/history-manager.js";
 import { formatAllowlistMatchMeta } from "../../channels/allowlist-match.js";
 import { resolveSessionKey, type SessionScope } from "../../config/sessions.js";
 import { logVerbose } from "../../globals.js";
@@ -156,7 +157,14 @@ export function createSlackMonitorContext(params: {
   mediaMaxBytes: number;
   removeAckAfterReply: boolean;
 }): SlackMonitorContext {
-  const channelHistories = new Map<string, HistoryEntry[]>();
+  const historyManager = createHistoryManager({
+    channel: "slack",
+    accountId: params.accountId,
+    maxEntriesPerKey: params.historyLimit,
+  });
+  // Initialize persistence (loads existing history)
+  void historyManager.initialize();
+  const channelHistories = historyManager.getMap();
   const logger = getChildLogger({ module: "slack-auto-reply" });
 
   const channelCache = new Map<

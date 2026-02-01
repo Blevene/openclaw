@@ -13,12 +13,12 @@ import {
   createInboundDebouncer,
   resolveInboundDebounceMs,
 } from "../../auto-reply/inbound-debounce.js";
+import { createHistoryManager } from "../../auto-reply/reply/history-manager.js";
 import {
   buildPendingHistoryContextFromMap,
   clearHistoryEntriesIfEnabled,
   DEFAULT_GROUP_HISTORY_LIMIT,
   recordPendingHistoryEntryIfEnabled,
-  type HistoryEntry,
 } from "../../auto-reply/reply/history.js";
 import { finalizeInboundContext } from "../../auto-reply/reply/inbound-context.js";
 import { buildMentionRegexes, matchesMentionPatterns } from "../../auto-reply/reply/mentions.js";
@@ -124,7 +124,14 @@ export async function monitorIMessageProvider(opts: MonitorIMessageOpts = {}): P
       cfg.messages?.groupChat?.historyLimit ??
       DEFAULT_GROUP_HISTORY_LIMIT,
   );
-  const groupHistories = new Map<string, HistoryEntry[]>();
+  const historyManager = createHistoryManager({
+    channel: "imessage",
+    accountId: accountInfo.accountId,
+    maxEntriesPerKey: historyLimit,
+  });
+  // Initialize persistence (loads existing history)
+  void historyManager.initialize();
+  const groupHistories = historyManager.getMap();
   const textLimit = resolveTextChunkLimit(cfg, "imessage", accountInfo.accountId);
   const allowFrom = normalizeAllowList(opts.allowFrom ?? imessageCfg.allowFrom);
   const groupAllowFrom = normalizeAllowList(

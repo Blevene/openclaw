@@ -3,7 +3,8 @@ import type { OpenClawConfig } from "../config/config.js";
 import type { SignalReactionNotificationMode } from "../config/types.js";
 import type { RuntimeEnv } from "../runtime.js";
 import { chunkTextWithMode, resolveChunkMode, resolveTextChunkLimit } from "../auto-reply/chunk.js";
-import { DEFAULT_GROUP_HISTORY_LIMIT, type HistoryEntry } from "../auto-reply/reply/history.js";
+import { createHistoryManager } from "../auto-reply/reply/history-manager.js";
+import { DEFAULT_GROUP_HISTORY_LIMIT } from "../auto-reply/reply/history.js";
 import { loadConfig } from "../config/config.js";
 import { waitForTransportReady } from "../infra/transport-ready.js";
 import { saveMediaBuffer } from "../media/store.js";
@@ -285,7 +286,14 @@ export async function monitorSignalProvider(opts: MonitorSignalOpts = {}): Promi
       cfg.messages?.groupChat?.historyLimit ??
       DEFAULT_GROUP_HISTORY_LIMIT,
   );
-  const groupHistories = new Map<string, HistoryEntry[]>();
+  const historyManager = createHistoryManager({
+    channel: "signal",
+    accountId: accountInfo.accountId,
+    maxEntriesPerKey: historyLimit,
+  });
+  // Initialize persistence (loads existing history)
+  void historyManager.initialize();
+  const groupHistories = historyManager.getMap();
   const textLimit = resolveTextChunkLimit(cfg, "signal", accountInfo.accountId);
   const chunkMode = resolveChunkMode(cfg, "signal", accountInfo.accountId);
   const baseUrl = opts.baseUrl?.trim() || accountInfo.baseUrl;

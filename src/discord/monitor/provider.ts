@@ -2,11 +2,11 @@ import { Client } from "@buape/carbon";
 import { GatewayIntents, GatewayPlugin } from "@buape/carbon/gateway";
 import { Routes } from "discord-api-types/v10";
 import { inspect } from "node:util";
-import type { HistoryEntry } from "../../auto-reply/reply/history.js";
 import type { OpenClawConfig, ReplyToMode } from "../../config/config.js";
 import type { RuntimeEnv } from "../../runtime.js";
 import { resolveTextChunkLimit } from "../../auto-reply/chunk.js";
 import { listNativeCommandSpecsForConfig } from "../../auto-reply/commands-registry.js";
+import { createHistoryManager } from "../../auto-reply/reply/history-manager.js";
 import { listSkillCommandsForAgents } from "../../auto-reply/skill-commands.js";
 import { mergeAllowlist, summarizeMapping } from "../../channels/allowlists/resolve-utils.js";
 import {
@@ -514,7 +514,14 @@ export async function monitorDiscordProvider(opts: MonitorDiscordOpts = {}) {
   await deployDiscordCommands({ client, runtime, enabled: nativeEnabled });
 
   const logger = createSubsystemLogger("discord/monitor");
-  const guildHistories = new Map<string, HistoryEntry[]>();
+  const historyManager = createHistoryManager({
+    channel: "discord",
+    accountId: account.accountId,
+    maxEntriesPerKey: historyLimit,
+  });
+  // Initialize persistence (loads existing history)
+  void historyManager.initialize();
+  const guildHistories = historyManager.getMap();
   let botUserId: string | undefined;
 
   if (nativeDisabledExplicit) {
