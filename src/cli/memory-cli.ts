@@ -681,6 +681,65 @@ export function registerMemoryCli(program: Command) {
     });
 
   memory
+    .command("maintain")
+    .description("Run memory consolidation and retention maintenance")
+    .option("--agent <id>", "Agent id (default: default agent)")
+    .option("--json", "Print JSON")
+    .option("--verbose", "Verbose logging", false)
+    .action(async (opts: MemoryCommandOptions) => {
+      setVerbose(Boolean(opts.verbose));
+      const cfg = loadConfig();
+      const agentIds = resolveAgentIds(cfg, opts.agent);
+      const allResults: Array<{
+        agentId: string;
+        result: ReturnType<MemoryManager["runMaintenance"]>;
+      }> = [];
+
+      for (const agentId of agentIds) {
+        await withManager<MemoryManager>({
+          getManager: () => getMemorySearchManager({ cfg, agentId }),
+          onMissing: (error) => defaultRuntime.log(error ?? "Memory search disabled."),
+          onCloseError: (err) =>
+            defaultRuntime.error(`Memory manager close failed: ${formatErrorMessage(err)}`),
+          close: (manager) => manager.close(),
+          run: async (manager) => {
+            const result = manager.runMaintenance();
+            allResults.push({ agentId, result });
+          },
+        });
+      }
+
+      if (opts.json) {
+        defaultRuntime.log(JSON.stringify(allResults, null, 2));
+        return;
+      }
+
+      const rich = isRich();
+      const heading = (text: string) => colorize(rich, theme.heading, text);
+      const muted = (text: string) => colorize(rich, theme.muted, text);
+      const info = (text: string) => colorize(rich, theme.info, text);
+      const success = (text: string) => colorize(rich, theme.success, text);
+      const warn = (text: string) => colorize(rich, theme.warn, text);
+      const label = (text: string) => muted(`${text}:`);
+
+      for (const { agentId, result } of allResults) {
+        const lines = [
+          `${heading("Memory Maintenance")} ${muted(`(${agentId})`)}`,
+          `${label("Timestamps initialized")} ${info(String(result.initialized))}`,
+          `${label("Scores updated")} ${info(String(result.scoresUpdated))}`,
+          `${label("Duplicates removed")} ${result.duplicatesRemoved > 0 ? success(String(result.duplicatesRemoved)) : muted("0")}`,
+          `${label("Similar candidates")} ${result.similarCandidates > 0 ? info(String(result.similarCandidates)) : muted("0")}`,
+          `${label("Importance boosted")} ${result.importanceBoosted > 0 ? success(String(result.importanceBoosted)) : muted("0")}`,
+          `${label("Chunks pruned")} ${result.pruned > 0 ? warn(String(result.pruned)) : muted("0")}`,
+          `${label("Chunks archived")} ${result.archived > 0 ? info(String(result.archived)) : muted("0")}`,
+          `${label("Bytes freed")} ${result.bytesFreed > 0 ? success(formatBytes(result.bytesFreed)) : muted("0 B")}`,
+        ];
+        defaultRuntime.log(lines.join("\n"));
+        defaultRuntime.log("");
+      }
+    });
+
+  memory
     .command("search")
     .description("Search memory files")
     .argument("<query>", "Search query")

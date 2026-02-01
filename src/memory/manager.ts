@@ -974,6 +974,66 @@ export class MemoryIndexManager {
     return getRetentionStats(this.db, this.retention.policy);
   }
 
+  /**
+   * Manually trigger retention maintenance (consolidation + pruning).
+   * Returns statistics about the maintenance operation.
+   */
+  runMaintenance(): {
+    initialized: number;
+    scoresUpdated: number;
+    duplicatesRemoved: number;
+    similarCandidates: number;
+    importanceBoosted: number;
+    pruned: number;
+    archived: number;
+    bytesFreed: number;
+  } {
+    if (!this.retention.enabled) {
+      return {
+        initialized: 0,
+        scoresUpdated: 0,
+        duplicatesRemoved: 0,
+        similarCandidates: 0,
+        importanceBoosted: 0,
+        pruned: 0,
+        archived: 0,
+        bytesFreed: 0,
+      };
+    }
+
+    // Initialize timestamps for new chunks
+    const initialized = initializeChunkTimestamps(this.db);
+
+    // Update importance scores
+    const scoresUpdated = updateImportanceScores(this.db, this.retention.policy);
+
+    // Run memory consolidation to deduplicate and reinforce similar content
+    const consolidation = runConsolidation(this.db, this.retention.policy, {
+      vectorTable: VECTOR_TABLE,
+      ftsTable: FTS_TABLE,
+      removeExactDupes: true,
+      reinforceSimilar: true,
+      similarityThreshold: 0.85,
+    });
+
+    // Enforce storage limits (after consolidation to benefit from deduplication)
+    const result = enforceStorageLimits(this.db, this.retention.policy, {
+      vectorTable: VECTOR_TABLE,
+      ftsTable: FTS_TABLE,
+    });
+
+    return {
+      initialized,
+      scoresUpdated,
+      duplicatesRemoved: consolidation.duplicatesFound,
+      similarCandidates: consolidation.candidates.length,
+      importanceBoosted: consolidation.importanceBoosted,
+      pruned: result.pruned,
+      archived: result.archived,
+      bytesFreed: result.bytesFreed,
+    };
+  }
+
   private ensureWatcher() {
     if (!this.sources.has("memory") || !this.settings.sync.watch || this.watcher) {
       return;

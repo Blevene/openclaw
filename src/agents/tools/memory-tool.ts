@@ -57,11 +57,21 @@ export function createMemorySearchTool(options: {
           sessionKey: options.agentSessionKey,
         });
         const status = manager.status();
+        const consolidationStats = manager.getConsolidationStats();
+        const retentionStats = manager.getRetentionStats();
         return jsonResult({
           results,
           provider: status.provider,
           model: status.model,
           fallback: status.fallback,
+          stats: {
+            totalChunks: consolidationStats.totalChunks,
+            exactDuplicates: consolidationStats.exactDuplicates,
+            potentialConsolidations: consolidationStats.potentialConsolidations,
+            totalBytes: retentionStats.totalBytes,
+            pruneCandidates: retentionStats.pruneCandidates,
+            oldestChunkAgeDays: Math.floor(retentionStats.oldestChunkAge),
+          },
         });
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
