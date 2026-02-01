@@ -478,7 +478,7 @@ export function getPruneCandidates(
   let query = `
     SELECT id, path, source, importance_score
     FROM chunks
-    WHERE pinned = 0
+    WHERE pinned = 0 AND importance != 'archive'
   `;
 
   const params: (number | string)[] = [];
@@ -585,9 +585,10 @@ export function pruneChunks(
         // Delete chunk
         db.prepare(`DELETE FROM chunks WHERE id = ?`).run(chunk.id);
         result.pruned++;
-      }
 
-      result.bytesFreed += chunkData?.size ?? 0;
+        // Only count bytesFreed when actually deleting (not archiving)
+        result.bytesFreed += chunkData?.size ?? 0;
+      }
     } catch (err) {
       log.debug(`Failed to prune chunk ${chunk.id}: ${String(err)}`);
       result.errors++;
