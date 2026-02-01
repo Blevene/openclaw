@@ -4,9 +4,12 @@
  * Provides a unified interface for managing chat history with optional
  * persistent storage. Wraps the in-memory Map with disk-backed SQLite
  * storage for high-value channels.
+ *
+ * Persistence is enabled by default when a channel is specified.
  */
 
 import type { HistoryEntry } from "./history.js";
+import { STATE_DIR } from "../../config/paths.js";
 import {
   appendHistoryEntry,
   clearHistoryEntries,
@@ -21,11 +24,24 @@ import {
 } from "./persistent-history.js";
 
 export type HistoryManagerConfig = {
-  /** Enable persistent storage (default: false) */
+  /**
+   * Channel name (telegram, discord, slack, signal, imessage, whatsapp).
+   * When provided, persistence is enabled automatically.
+   */
+  channel?: string;
+  /**
+   * Account ID for multi-account channels (optional).
+   * Used to separate history for different accounts of the same channel.
+   */
+  accountId?: string;
+  /**
+   * Enable persistent storage.
+   * Default: true when channel is provided, false otherwise.
+   */
   persistent?: boolean;
-  /** Agent ID for persistent storage path */
+  /** Agent ID for persistent storage path (legacy, prefer channel) */
   agentId?: string;
-  /** State directory for persistent storage */
+  /** State directory for persistent storage (auto-resolved if not provided) */
   stateDir?: string;
   /** Maximum entries per history key */
   maxEntriesPerKey?: number;
@@ -50,11 +66,25 @@ export class HistoryManager {
     this.maxEntriesPerKey = config.maxEntriesPerKey ?? DEFAULT_GROUP_HISTORY_LIMIT;
     this.maxKeys = config.maxKeys ?? MAX_HISTORY_KEYS;
 
-    // Create persistent store if enabled and configured
-    if (config.persistent && config.agentId && config.stateDir) {
+    // Resolve persistence configuration
+    const stateDir = config.stateDir ?? STATE_DIR;
+    const hasChannel = Boolean(config.channel);
+
+    // Build storage ID from channel and optional accountId
+    const storageId = config.channel
+      ? config.accountId
+        ? `${config.channel}-${config.accountId}`
+        : config.channel
+      : config.agentId;
+
+    // Enable persistence by default when channel is specified
+    const shouldPersist = config.persistent ?? hasChannel;
+
+    // Create persistent store if enabled and we have a valid storage ID
+    if (shouldPersist && storageId && stateDir) {
       this.persistentStore = createPersistentHistoryStore({
-        agentId: config.agentId,
-        stateDir: config.stateDir,
+        agentId: storageId,
+        stateDir,
         config: {
           ...config.persistentConfig,
           maxEntriesPerKey: this.maxEntriesPerKey,

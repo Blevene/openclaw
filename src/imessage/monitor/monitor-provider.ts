@@ -125,8 +125,12 @@ export async function monitorIMessageProvider(opts: MonitorIMessageOpts = {}): P
       DEFAULT_GROUP_HISTORY_LIMIT,
   );
   const historyManager = createHistoryManager({
+    channel: "imessage",
+    accountId: accountInfo.accountId,
     maxEntriesPerKey: historyLimit,
   });
+  // Initialize persistence (loads existing history)
+  void historyManager.initialize();
   const groupHistories = historyManager.getMap();
   const textLimit = resolveTextChunkLimit(cfg, "imessage", accountInfo.accountId);
   const allowFrom = normalizeAllowList(opts.allowFrom ?? imessageCfg.allowFrom);

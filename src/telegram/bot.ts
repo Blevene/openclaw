@@ -236,8 +236,12 @@ export function createTelegramBot(opts: TelegramBotOptions) {
       DEFAULT_GROUP_HISTORY_LIMIT,
   );
   const historyManager = createHistoryManager({
+    channel: "telegram",
+    accountId: account.accountId,
     maxEntriesPerKey: historyLimit,
   });
+  // Initialize persistence (loads existing history)
+  void historyManager.initialize();
   const groupHistories = historyManager.getMap();
   const textLimit = resolveTextChunkLimit(cfg, "telegram", account.accountId);
   const dmPolicy = telegramCfg.dmPolicy ?? "pairing";

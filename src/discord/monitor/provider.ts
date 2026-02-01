@@ -515,8 +515,12 @@ export async function monitorDiscordProvider(opts: MonitorDiscordOpts = {}) {
 
   const logger = createSubsystemLogger("discord/monitor");
   const historyManager = createHistoryManager({
+    channel: "discord",
+    accountId: account.accountId,
     maxEntriesPerKey: historyLimit,
   });
+  // Initialize persistence (loads existing history)
+  void historyManager.initialize();
   const guildHistories = historyManager.getMap();
   let botUserId: string | undefined;
 

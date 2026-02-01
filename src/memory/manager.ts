@@ -72,8 +72,10 @@ import {
   updateImportanceScores,
   enforceStorageLimits,
   initializeChunkTimestamps,
+  getRetentionStats,
   DEFAULT_RETENTION_POLICY,
   type RetentionPolicy,
+  type RetentionStats,
 } from "./retention.js";
 import {
   buildSessionEntry,
@@ -963,6 +965,13 @@ export class MemoryIndexManager {
     uniqueHashes: number;
   } {
     return getConsolidationStats(this.db);
+  }
+
+  /**
+   * Get memory retention statistics
+   */
+  getRetentionStats(): RetentionStats {
+    return getRetentionStats(this.db, this.retention.policy);
   }
 
   private ensureWatcher() {

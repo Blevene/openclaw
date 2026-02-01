@@ -287,8 +287,12 @@ export async function monitorSignalProvider(opts: MonitorSignalOpts = {}): Promi
       DEFAULT_GROUP_HISTORY_LIMIT,
   );
   const historyManager = createHistoryManager({
+    channel: "signal",
+    accountId: accountInfo.accountId,
     maxEntriesPerKey: historyLimit,
   });
+  // Initialize persistence (loads existing history)
+  void historyManager.initialize();
   const groupHistories = historyManager.getMap();
   const textLimit = resolveTextChunkLimit(cfg, "signal", accountInfo.accountId);
   const chunkMode = resolveChunkMode(cfg, "signal", accountInfo.accountId);

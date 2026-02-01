@@ -102,8 +102,12 @@ export async function monitorWebChannel(
     cfg.messages?.groupChat?.historyLimit ??
     DEFAULT_GROUP_HISTORY_LIMIT;
   const historyManager = createHistoryManager({
+    channel: "whatsapp",
+    accountId: tuning.accountId,
     maxEntriesPerKey: groupHistoryLimit,
   });
+  // Initialize persistence (loads existing history)
+  void historyManager.initialize();
   const groupHistories = historyManager.getMap();
   const groupMemberNames = new Map<string, Map<string, string>>();
   const echoTracker = createEchoTracker({ maxItems: 100, logVerbose });

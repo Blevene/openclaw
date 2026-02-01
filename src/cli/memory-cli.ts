@@ -41,6 +41,19 @@ type MemorySourceScan = {
   issues: string[];
 };
 
+function formatBytes(bytes: number): string {
+  if (bytes < 1024) {
+    return `${bytes} B`;
+  }
+  if (bytes < 1024 * 1024) {
+    return `${(bytes / 1024).toFixed(1)} KB`;
+  }
+  if (bytes < 1024 * 1024 * 1024) {
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  }
+  return `${(bytes / (1024 * 1024 * 1024)).toFixed(1)} GB`;
+}
+
 function formatSourceLabel(source: string, workspaceDir: string, agentId: string): string {
   if (source === "memory") {
     return shortenHomeInString(
@@ -249,6 +262,8 @@ export async function runMemoryStatus(opts: MemoryCommandOptions) {
     embeddingProbe?: Awaited<ReturnType<MemoryManager["probeEmbeddingAvailability"]>>;
     indexError?: string;
     scan?: MemorySourceScan;
+    consolidationStats?: ReturnType<MemoryManager["getConsolidationStats"]>;
+    retentionStats?: ReturnType<MemoryManager["getRetentionStats"]>;
   }> = [];
 
   for (const agentId of agentIds) {
@@ -307,6 +322,8 @@ export async function runMemoryStatus(opts: MemoryCommandOptions) {
           await manager.probeVectorAvailability();
         }
         const status = manager.status();
+        const consolidationStats = manager.getConsolidationStats();
+        const retentionStats = manager.getRetentionStats();
         const sources = (
           status.sources?.length ? status.sources : ["memory"]
         ) as MemorySourceName[];
@@ -316,7 +333,15 @@ export async function runMemoryStatus(opts: MemoryCommandOptions) {
           sources,
           extraPaths: status.extraPaths,
         });
-        allResults.push({ agentId, status, embeddingProbe, indexError, scan });
+        allResults.push({
+          agentId,
+          status,
+          embeddingProbe,
+          indexError,
+          scan,
+          consolidationStats,
+          retentionStats,
+        });
       },
     });
   }
@@ -336,7 +361,15 @@ export async function runMemoryStatus(opts: MemoryCommandOptions) {
   const label = (text: string) => muted(`${text}:`);
 
   for (const result of allResults) {
-    const { agentId, status, embeddingProbe, indexError, scan } = result;
+    const {
+      agentId,
+      status,
+      embeddingProbe,
+      indexError,
+      scan,
+      consolidationStats,
+      retentionStats,
+    } = result;
     const totalFiles = scan?.totalFiles ?? null;
     const indexedLabel =
       totalFiles === null
@@ -447,6 +480,38 @@ export async function runMemoryStatus(opts: MemoryCommandOptions) {
       );
       if (status.batch.lastError) {
         lines.push(`${label("Batch error")} ${warn(status.batch.lastError)}`);
+      }
+    }
+    // Consolidation stats
+    if (consolidationStats) {
+      const dupLabel =
+        consolidationStats.exactDuplicates > 0
+          ? warn(`${consolidationStats.exactDuplicates} duplicates`)
+          : muted("0 duplicates");
+      const consolidateLabel =
+        consolidationStats.potentialConsolidations > 0
+          ? info(`${consolidationStats.potentialConsolidations} similar`)
+          : muted("0 similar");
+      lines.push(`${label("Consolidation")} ${dupLabel} · ${consolidateLabel}`);
+    }
+    // Retention stats
+    if (retentionStats) {
+      const bytesLabel = formatBytes(retentionStats.totalBytes);
+      const ageLabel =
+        retentionStats.oldestChunkAge > 0
+          ? `${Math.floor(retentionStats.oldestChunkAge)}d old`
+          : "no history";
+      const pruneLabel =
+        retentionStats.pruneCandidates > 0
+          ? warn(`${retentionStats.pruneCandidates} prune candidates`)
+          : muted("0 prune candidates");
+      lines.push(`${label("Retention")} ${info(bytesLabel)} · ${muted(ageLabel)} · ${pruneLabel}`);
+      const importanceBreakdown = Object.entries(retentionStats.byImportance)
+        .filter(([, count]) => count > 0)
+        .map(([level, count]) => `${level}: ${count}`)
+        .join(", ");
+      if (importanceBreakdown) {
+        lines.push(`${label("By importance")} ${muted(importanceBreakdown)}`);
       }
     }
     if (status.fallback?.reason) {

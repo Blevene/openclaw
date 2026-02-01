@@ -158,8 +158,12 @@ export function createSlackMonitorContext(params: {
   removeAckAfterReply: boolean;
 }): SlackMonitorContext {
   const historyManager = createHistoryManager({
+    channel: "slack",
+    accountId: params.accountId,
     maxEntriesPerKey: params.historyLimit,
   });
+  // Initialize persistence (loads existing history)
+  void historyManager.initialize();
   const channelHistories = historyManager.getMap();
   const logger = getChildLogger({ module: "slack-auto-reply" });
 
