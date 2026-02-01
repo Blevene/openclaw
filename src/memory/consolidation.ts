@@ -136,7 +136,7 @@ export function findSimilarChunks(
     const shuffled = [...allChunks];
     for (let i = shuffled.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
-      [shuffled[i], shuffled[j]] = [shuffled[j]!, shuffled[i]!];
+      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
     }
     chunks = shuffled.slice(0, maxSampleSize);
     log.debug(`Sampled ${maxSampleSize} of ${allChunks.length} chunks for similarity check`);
